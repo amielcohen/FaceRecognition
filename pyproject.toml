@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "facerecog"
+version = "0.1.0"
+description = "AI-Powered Face Recognition NVR System"
+dependencies = [
+    "ultralytics",
+    "opencv-python",
+    "numpy",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["facerecog*"]
