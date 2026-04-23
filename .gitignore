@@ -15,6 +15,10 @@ facerecog/database/vision_db.sqlite
 *.pt
 *.mp4
 *.sqlite
-
+employees_data/
+data/crops/
+employees_embeddings.json
 # VS Code
 .vscode/
+models/*.h5
+models/*.pt

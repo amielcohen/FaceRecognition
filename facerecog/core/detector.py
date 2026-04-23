@@ -1,39 +1,53 @@
 from ultralytics import YOLO
-import cv2
-import numpy as np
 
-class PersonDetector:
-    def __init__(self, model_name='yolov8n.pt'):
+
+class Detector:
+    def __init__(self, model_name: str = "yolov8n.pt"):
         """
-        Initialize the YOLO model.
-        Using yolov8n (Nano) as it is the fastest version, ideal for real-time processing.
-        Note: The weights file will be downloaded automatically on the first run.
+        Initialize the YOLO model for person detection and tracking.
         """
         self.model = YOLO(model_name)
-        
-    def detect(self, frame):
-        """
-        Perform object detection and tracking on a single frame.
-        """
-        # Run tracking on the frame.
-        # persist=True: maintains state between frames.
-        # classes=[0]: filters results to detect 'person' class only.
-        results = self.model.track(frame, persist=True, classes=[0], verbose=False)
-        
-        detections = []
-        
-        # Check if boxes were detected and if they have associated tracking IDs
-        if results[0].boxes and results[0].boxes.id is not None:
-            # Extract coordinates, IDs, and confidence scores
-            boxes = results[0].boxes.xyxy.cpu().numpy().astype(int)
-            ids = results[0].boxes.id.cpu().numpy().astype(int)
-            confs = results[0].boxes.conf.cpu().numpy()
 
-            for box, track_id, conf in zip(boxes, ids, confs):
-                detections.append({
-                    'bbox': box,        # Coordinates [x1, y1, x2, y2]
-                    'track_id': track_id,
-                    'conf': conf
-                })
-                
+    def track(self, frame):
+        """
+        Run person tracking on a single frame.
+
+        Returns:
+            A list of dictionaries, each containing:
+            - bbox: [x1, y1, x2, y2]
+            - track_id: integer tracking ID
+            - conf: detection confidence
+            - label: object label ("person")
+        """
+        results = self.model.track(
+            source=frame,
+            persist=True,
+            classes=[0],  # COCO class 0 = person
+            verbose=False
+        )
+
+        detections = []
+
+        if not results or len(results) == 0:
+            return detections
+
+        result = results[0]
+
+        if result.boxes is None or result.boxes.id is None:
+            return detections
+
+        boxes = result.boxes.xyxy.cpu().numpy().astype(int)
+        track_ids = result.boxes.id.cpu().numpy().astype(int)
+        confidences = result.boxes.conf.cpu().numpy()
+
+        for box, track_id, conf in zip(boxes, track_ids, confidences):
+            x1, y1, x2, y2 = box.tolist()
+
+            detections.append({
+                "bbox": [x1, y1, x2, y2],
+                "track_id": int(track_id),
+                "conf": float(conf),
+                "label": "person"
+            })
+
         return detections
