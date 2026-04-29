@@ -8,6 +8,31 @@ from facerecog.database.db_manager import DatabaseManager
 from facerecog.core.detector import Detector
 from facerecog.core.face_detector import FaceDetector
 from facerecog.core.face_recognizer import FaceRecognizer
+from facerecog.utils.face_quality import calculate_face_quality
+
+
+debug_stats = {
+    "person_detected": 0,
+    "no_face_in_person_crop": 0,
+    "face_too_small": 0,
+    "retry_blocked": 0,
+    "embedding_submitted": 0,
+    "embedding_failed": 0,
+    "matched_below_threshold": 0,
+    "matched_and_locked": 0,
+    "unknown_after_match": 0,
+}
+
+
+def get_setting(settings, key, default, cast_type=float):
+    try:
+        value = settings.get(key, default)
+        if value is None:
+            return default
+        return cast_type(value)
+    except (TypeError, ValueError):
+        print(f"[Settings] Failed to load {key}. Using default: {default}")
+        return default
 
 
 def save_face_crop(face_crop, matched_name, track_id, output_dir="data/crops"):
@@ -61,23 +86,32 @@ def main():
         return
 
     video_source = settings.get("rtsp_url", "0")
-    min_face_area = settings.get("min_face_area", 2500)
-    area_update_ratio = settings.get("area_update_ratio", 1.2)
-    match_threshold = settings.get("match_identity_threshold", 0.4)
-    lock_threshold = settings.get("lock_identity_threshold", 0.2)
-    max_unknown_attempts = settings.get("max_unknown_attempts", 5)
-    frame_skip_interval = settings.get("frame_skip_inteqrval", 1)
+
+    min_face_area = get_setting(settings, "min_face_area", 1000, int)
+    match_threshold = get_setting(settings, "match_identity_threshold", 0.4, float)
+
+    # 🔥 עדכון חשוב
+    lock_threshold = get_setting(settings, "lock_identity_threshold", 0.35, float)
+
+    max_unknown_attempts = get_setting(settings, "max_unknown_attempts", 5, int)
+    frame_skip_interval = get_setting(settings, "frame_skip_interval", 1, int)
+
+    # 🔥 עדכון לוגיקה פחות אגרסיבית
+    quality_submit_min = get_setting(settings, "quality_submit_min", 0.40, float)
+    quality_submit_hard = get_setting(settings, "quality_submit_hard", 0.82, float)
+    quality_gain_min = get_setting(settings, "quality_gain_min", 0.05, float)
+    quality_retry_interval = get_setting(settings, "quality_retry_interval", 5, int)
 
     try:
         video_source = int(video_source)
-    except ValueError:
+    except (TypeError, ValueError):
         pass
 
     detector = Detector(model_name="yolov8n.pt")
 
     face_detector = FaceDetector(
         model_name="models/yolov8n-face.pt",
-        margin_ratio=0.20
+        margin_ratio=0.35
     )
 
     face_recognizer = FaceRecognizer(
@@ -86,10 +120,22 @@ def main():
         match_threshold=match_threshold,
         lock_threshold=lock_threshold,
         max_unknown_attempts=max_unknown_attempts,
-        max_workers=2
+        max_workers=2,
+        debug_stats=debug_stats,
+        quality_submit_min=quality_submit_min,
+        quality_submit_hard=quality_submit_hard,
+        quality_gain_min=quality_gain_min,
+        quality_retry_interval=quality_retry_interval
     )
 
     cap = cv2.VideoCapture(1)
+
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    cap.set(cv2.CAP_PROP_FPS, 30)
+
+    print("requested width:", cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    print("requested height:", cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
     if not cap.isOpened():
         print("Failed to open camera")
@@ -112,21 +158,23 @@ def main():
         if frame_index % frame_skip_interval == 0:
             detections = detector.track(frame)
 
-        # Handle disappeared tracks
+        # cleanup
         if frame_index % 30 == 0:
             stale_ids = face_recognizer.cleanup_stale_tracks(
                 current_frame_index=frame_index,
                 max_missing_frames=90
             )
 
-            for track_id in stale_ids:
-                log_final_track_result(db, face_recognizer, track_id)
+            for stale_track_id in stale_ids:
+                log_final_track_result(db, face_recognizer, stale_track_id)
 
             face_recognizer.purge_logged_stale_tracks(stale_ids)
 
         for det in detections:
             if det.get("label") != "person":
                 continue
+
+            debug_stats["person_detected"] += 1
 
             track_id = det["track_id"]
             x1, y1, x2, y2 = map(int, det["bbox"])
@@ -157,19 +205,30 @@ def main():
                     face_area = face_result["area"]
                     face_crop = face_result["crop"]
 
+                    quality = calculate_face_quality(face_crop, face_area)
+
                     if face_area >= min_face_area:
                         if face_recognizer.should_process_face(
                             track_id=track_id,
                             face_area=face_area,
-                            growth_ratio=area_update_ratio,
+                            quality_score=quality["score"],
                             current_frame=frame_index
                         ):
+                            debug_stats["embedding_submitted"] += 1
+
                             face_recognizer.submit_face(
                                 track_id=track_id,
                                 face_crop=face_crop,
                                 face_area=face_area,
-                                current_frame=frame_index   
+                                quality=quality,
+                                current_frame=frame_index
                             )
+                        else:
+                            debug_stats["retry_blocked"] += 1
+                    else:
+                        debug_stats["face_too_small"] += 1
+                else:
+                    debug_stats["no_face_in_person_crop"] += 1
 
             status = face_recognizer.get_status(track_id)
             display_name = face_recognizer.get_display_name(track_id)
@@ -202,7 +261,6 @@ def main():
 
             log_final_track_result(db, face_recognizer, track_id)
 
-        # FPS
         elapsed = time.time() - start_time
         fps = 1 / elapsed if elapsed > 0 else 0
 
@@ -216,6 +274,11 @@ def main():
             2
         )
 
+        if frame_index % 60 == 0:
+            print("\n==== DEBUG STATS ====")
+            for key, value in debug_stats.items():
+                print(f"{key}: {value}")
+
         cv2.imshow("Face Recognition System", frame)
 
         if cv2.waitKey(1) & 0xFF == ord("q"):
@@ -227,8 +290,8 @@ def main():
         max_missing_frames=0
     )
 
-    for track_id in stale_ids:
-        log_final_track_result(db, face_recognizer, track_id)
+    for stale_track_id in stale_ids:
+        log_final_track_result(db, face_recognizer, stale_track_id)
 
     face_recognizer.purge_logged_stale_tracks(stale_ids)
 

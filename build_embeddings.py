@@ -49,7 +49,7 @@ def build_database():
 
     face_detector = FaceDetector(
         model_name="models/yolov8n-face.pt",
-        margin_ratio=0.20
+        margin_ratio=0.35
     )
 
     database = {}
