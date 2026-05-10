@@ -1,16 +1,21 @@
 import json
 import time
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 from deepface import DeepFace
 from scipy.spatial import distance
+
+
+BASE_DIR = Path(__file__).resolve().parents[2]
+DEFAULT_DB_PATH = BASE_DIR / "storage" / "employees_embeddings.json"
 
 
 class FaceRecognizer:
     def __init__(
         self,
         model_name="Facenet",
-        db_path="employees_embeddings.json",
+        db_path=DEFAULT_DB_PATH,
         match_threshold=0.4,
         lock_threshold=0.35,
         max_unknown_attempts=5,
@@ -245,9 +250,6 @@ class FaceRecognizer:
                 if self.debug_stats is not None:
                     self.debug_stats["unknown_after_match"] += 1
 
-                # Do not mark as Unknown here.
-                # Unknown is decided only in cleanup_stale_tracks when the track disappears.
-
         except Exception as error:
             print(f"[AI Error] {error}")
 
@@ -272,9 +274,6 @@ class FaceRecognizer:
             f"{state['attempts']}/{self.max_unknown_attempts} "
             f"(not marking Unknown while track is still visible)"
         )
-
-        # Do not mark as Unknown here.
-        # Unknown is decided only in cleanup_stale_tracks when the track disappears.
 
     def should_log_identity(self, track_id):
         state = self.track_states.get(track_id)

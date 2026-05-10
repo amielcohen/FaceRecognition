@@ -1,4 +1,3 @@
-import os
 import json
 from pathlib import Path
 
@@ -8,8 +7,12 @@ from deepface import DeepFace
 from facerecog.core.face_detector import FaceDetector
 
 
-EMPLOYEES_ROOT = "employees_data"
-OUTPUT_JSON = "employees_embeddings.json"
+BASE_DIR = Path(__file__).resolve().parent
+
+EMPLOYEES_ROOT = BASE_DIR / "employees_data"
+STORAGE_DIR = BASE_DIR / "storage"
+OUTPUT_JSON = STORAGE_DIR / "employees_embeddings.json"
+FACE_MODEL_PATH = BASE_DIR / "models" / "yolov8n-face.pt"
 
 
 def get_embedding(face_crop, model_name="Facenet"):
@@ -41,14 +44,12 @@ def build_database():
         David/
             img1.jpg
     """
-    employees_root = Path(EMPLOYEES_ROOT)
-
-    if not employees_root.exists():
+    if not EMPLOYEES_ROOT.exists():
         print(f"Directory '{EMPLOYEES_ROOT}' does not exist.")
         return
 
     face_detector = FaceDetector(
-        model_name="models/yolov8n-face.pt",
+        model_name=str(FACE_MODEL_PATH),
         margin_ratio=0.35
     )
 
@@ -57,7 +58,7 @@ def build_database():
 
     print("=== Building Face Embeddings Database ===\n")
 
-    for employee_dir in employees_root.iterdir():
+    for employee_dir in EMPLOYEES_ROOT.iterdir():
         if not employee_dir.is_dir():
             continue
 
@@ -79,7 +80,6 @@ def build_database():
                 print(f"  [Skip] Could not read {img_path.name}")
                 continue
 
-            # Detect face using the SAME logic as runtime
             face_result = face_detector.detect_largest_face(image)
 
             if face_result is None:
@@ -87,7 +87,6 @@ def build_database():
                 continue
 
             face_crop = face_result["crop"]
-
             emb = get_embedding(face_crop)
 
             if emb is not None:
@@ -101,9 +100,9 @@ def build_database():
             database[employee_name] = embeddings
             print(f"  → {success_count}/{total_images} images used\n")
         else:
-            print(f"  → No valid embeddings created!\n")
-
-    # Save database
+            print("  → No valid embeddings created!\n")
+            
+    STORAGE_DIR.mkdir(parents=True, exist_ok=True)
     with open(OUTPUT_JSON, "w", encoding="utf-8") as f:
         json.dump(database, f)
 

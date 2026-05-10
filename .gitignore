@@ -22,3 +22,5 @@ employees_embeddings.json
 .vscode/
 models/*.h5
 models/*.pt
+frontend/node_modules/
+frontend/dist/

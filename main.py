@@ -90,7 +90,7 @@ def main():
     min_face_area = get_setting(settings, "min_face_area", 1000, int)
     match_threshold = get_setting(settings, "match_identity_threshold", 0.4, float)
 
-    # 🔥 עדכון חשוב
+    
     lock_threshold = get_setting(settings, "lock_identity_threshold", 0.35, float)
 
     max_unknown_attempts = get_setting(settings, "max_unknown_attempts", 5, int)
@@ -116,7 +116,7 @@ def main():
 
     face_recognizer = FaceRecognizer(
         model_name="Facenet",
-        db_path="employees_embeddings.json",
+        db_path="storage/employees_embeddings.json",
         match_threshold=match_threshold,
         lock_threshold=lock_threshold,
         max_unknown_attempts=max_unknown_attempts,
@@ -127,8 +127,16 @@ def main():
         quality_gain_min=quality_gain_min,
         quality_retry_interval=quality_retry_interval
     )
+    
+    camera_source = os.getenv("CAMERA_SOURCE", "1")
 
-    cap = cv2.VideoCapture(1)
+    if camera_source.isdigit():
+        camera_source = int(camera_source)
+
+    print(f"[CAMERA] Using source: {camera_source}")
+
+
+    cap = cv2.VideoCapture(camera_source)
 
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
