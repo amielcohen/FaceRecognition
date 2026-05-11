@@ -1,0 +1,201 @@
+.page {
+  padding: 32px;
+  background-color: #0f172a; /* כהה מודרני */
+  min-height: 100vh;
+  color: #f8fafc;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.topSection {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 32px;
+}
+
+.topSection h1 {
+  font-size: 28px;
+  margin: 0;
+  font-weight: 700;
+  color: #fff;
+}
+
+.topSection p {
+  color: #94a3b8;
+  margin: 8px 0 0;
+}
+
+/* סרגל פילטרים */
+.filtersContainer {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  background: #1e293b;
+  padding: 20px 24px;
+  border-radius: 16px;
+  margin-bottom: 24px;
+  border: 1px solid #334155;
+  flex-wrap: wrap;
+}
+
+.searchInput {
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 10px;
+  width: 240px;
+  outline: none;
+}
+
+.searchInput:focus {
+  border-color: #10b981;
+}
+
+/* קבוצת כפתורי הסטטוס */
+.statusToggleGroup {
+  display: flex;
+  background: #0f172a;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid #334155;
+}
+
+.toggleButton {
+  padding: 8px 20px;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.toggleButton.active {
+  background: #10b981;
+  color: white;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+}
+
+/* תאריכים */
+.dateFilters {
+  display: flex;
+  gap: 16px;
+}
+
+.dateGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dateGroup label {
+  font-size: 14px;
+  color: #94a3b8;
+}
+
+.dateInput {
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color-scheme: dark; /* גורם לאייקון לוח השנה להיות לבן */
+}
+
+/* טבלה */
+.tableWrapper {
+  background: #1e293b;
+  border-radius: 16px;
+  border: 1px solid #334155;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  background: rgba(51, 65, 85, 0.5);
+  color: #94a3b8;
+  text-align: left;
+  padding: 16px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.table td {
+  padding: 16px;
+  border-bottom: 1px solid #334155;
+  color: #e2e8f0;
+}
+
+.nameCell {
+  font-weight: 600;
+  color: #fff !important;
+}
+
+.clickableRow:hover {
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+}
+
+/* כפתור רענון */
+.refreshButton {
+  background: #334155;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.refreshButton:hover {
+  background: #475569;
+}
+
+/* תגיות סטטוס */
+.identifiedBadge, .unknownBadge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.identifiedBadge {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.unknownBadge {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.linkText {
+  color: #3b82f6;
+  text-decoration: underline;
+}
+
+.message {
+  padding: 40px;
+  text-align: center;
+  color: #94a3b8;
+  background: #1e293b;
+  border-radius: 16px;
+}
+
+.errorCard {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid #ef4444;
+  color: #fca5a5;
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
