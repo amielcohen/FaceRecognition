@@ -1,0 +1,104 @@
+.page {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-base);
+  background-image:
+    radial-gradient(ellipse 60% 50% at 50% 0%, rgba(0,230,118,0.06) 0%, transparent 70%);
+}
+
+.card {
+  width: 360px;
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-border);
+  border-radius: var(--radius-lg);
+  padding: 40px 36px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.logoIcon {
+  font-size: 24px;
+  color: var(--accent-green);
+}
+
+.logoText {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.05em;
+}
+
+.subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 32px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+}
+
+.input {
+  background: var(--bg-elevated);
+  border: 1px solid var(--bg-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 14px;
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color var(--transition);
+}
+
+.input:focus {
+  border-color: var(--accent-green);
+}
+
+.error {
+  font-size: 12px;
+  color: var(--accent-red);
+  font-family: var(--font-mono);
+}
+
+.btn {
+  margin-top: 8px;
+  background: var(--accent-green);
+  color: #000;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  transition: opacity var(--transition);
+}
+
+.btn:hover {
+  opacity: 0.85;
+}
