@@ -19,7 +19,7 @@ def setup_database():
             
             -- Detection settings (thresholds and sensitivity)
             min_face_area INTEGER DEFAULT 2500,
-            lock_identity_threshold FLOAT DEFAULT 0.2,
+            lock_identity_threshold FLOAT DEFAULT 0.35,
             area_update_ratio FLOAT DEFAULT 1.2,
             
             -- NVR and video archive settings
