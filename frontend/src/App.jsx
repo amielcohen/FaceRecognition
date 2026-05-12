@@ -6,7 +6,6 @@ import DashboardPage from './pages/DashboardPage'
 import LiveMonitorPage from './pages/LiveMonitorPage'
 import EmployeesPage from './pages/EmployeesPage'
 import AttendanceLogsPage from './pages/AttendanceLogsPage'
-import UnknownFacesPage from './pages/UnknownFacesPage'
 import CameraSettingsPage from './pages/CameraSettingsPage'
 
 function ProtectedRoute({ children }) {
@@ -33,7 +32,6 @@ export default function App() {
             <Route path="live" element={<LiveMonitorPage />} />
             <Route path="employees" element={<EmployeesPage />} />
             <Route path="attendance" element={<AttendanceLogsPage />} />
-            <Route path="alerts" element={<UnknownFacesPage />} />
             <Route path="camera-settings" element={<CameraSettingsPage />} />
           </Route>
         </Routes>

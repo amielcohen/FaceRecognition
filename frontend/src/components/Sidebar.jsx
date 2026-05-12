@@ -6,7 +6,6 @@ const NAV_ITEMS = [
   { to: '/live',            label: 'Live Monitor',     icon: '◉' },
   { to: '/employees',       label: 'Employees',        icon: '▣' },
   { to: '/attendance',      label: 'Attendance Logs',  icon: '≡' },
-  { to: '/alerts',          label: 'Unknown / Alerts', icon: '⚠' },
   { to: '/camera-settings', label: 'Camera Settings',  icon: '◈' },
 ]
 

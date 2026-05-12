@@ -1,0 +1,200 @@
+.page {
+  padding: 32px;
+  background-color: #0f172a;
+  min-height: 100vh;
+  color: #f8fafc;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.topSection {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 40px;
+}
+
+.topSection h1 {
+  font-size: 36px;
+  margin: 0;
+  background: linear-gradient(to right, #fff, #94a3b8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.topSection p {
+  color: #94a3b8;
+  margin: 10px 0 0;
+  font-size: 16px;
+}
+
+.refreshButton {
+  background: #1e293b;
+  color: #fff;
+  border: 1px solid #334155;
+  padding: 10px 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.refreshButton:hover {
+  background: #334155;
+}
+
+/* מבנה הגריד */
+.dashboardGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  padding: 30px;
+  border-radius: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* סטטוס מערכת */
+.statusMainCard {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(145deg, #1e293b 0%, #161e2e 100%);
+}
+
+.label {
+  display: block;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: #94a3b8;
+  margin-bottom: 8px;
+}
+
+.statusRunning { color: #10b981; font-size: 42px; margin: 0; }
+.statusStopped { color: #ef4444; font-size: 42px; margin: 0; }
+.statusStarting { color: #3b82f6; font-size: 42px; margin: 0; }
+
+/* Pulse Animation */
+.runningDot {
+  width: 20px;
+  height: 20px;
+  background: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 0 rgba(16, 185, 129, 0.4);
+  animation: pulse 2s infinite;
+}
+
+.stoppedDot {
+  width: 20px;
+  height: 20px;
+  background: #ef4444;
+  border-radius: 50%;
+}
+
+.startingDot {
+  width: 20px;
+  height: 20px;
+  background: #3b82f6;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { box-shadow: 0 0 0 20px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* כפתורי שליטה */
+.actionsCard {
+  justify-content: space-between;
+}
+
+.actionButtons {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.startButton, .restartButton, .stopButton {
+  padding: 14px;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.1s, opacity 0.2s;
+}
+
+.startButton { background: #10b981; color: #fff; }
+.restartButton { background: #3b82f6; color: #fff; }
+.stopButton { background: #ef4444; color: #fff; }
+
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button:active:not(:disabled) { transform: scale(0.95); }
+
+/* סטטיסטיקות */
+.statsContainer {
+  grid-column: span 2;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.statBox {
+  background: #1e293b;
+  border: 1px solid #334155;
+  padding: 24px;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.statLabel { color: #94a3b8; font-size: 14px; margin-bottom: 10px; }
+.statValue { font-size: 36px; color: #fff; }
+
+.alertStat {
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.alertStat .statValue { color: #fca5a5; }
+
+.fullWidthStat {
+  grid-column: span 3;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dateValue { font-size: 20px; color: #3b82f6; }
+
+/* הודעות */
+.errorCard, .successCard {
+  padding: 16px 24px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  font-weight: 600;
+}
+
+.errorCard { background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #fca5a5; }
+.successCard { background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; color: #34d399; }
+
+.loadingOverlay {
+  padding: 100px;
+  text-align: center;
+  font-size: 18px;
+  color: #94a3b8;
+}
+
+/* רספונסיביות */
+@media (max-width: 900px) {
+  .dashboardGrid { grid-template-columns: 1fr; }
+  .statsContainer { grid-template-columns: 1fr 1fr; }
+  .fullWidthStat { grid-column: span 2; }
+}

@@ -1,0 +1,211 @@
+.page {
+  padding: 32px;
+  background-color: #0f172a;
+  min-height: 100vh;
+  color: #f8fafc;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.topSection {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+}
+
+.topSection h1 {
+  font-size: 32px;
+  margin: 0;
+  font-weight: 800;
+}
+
+.topSection p {
+  color: #94a3b8;
+  margin-top: 8px;
+}
+
+.headerActions {
+  display: flex;
+  gap: 12px;
+}
+
+/* כרטיסי ה-Presets */
+.presetGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+.presetCard {
+  background: #1e293b;
+  border: 2px solid #334155;
+  padding: 24px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.presetCard:hover {
+  border-color: #3b82f6;
+  transform: translateY(-2px);
+}
+
+.activePreset {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.presetIcon {
+  font-size: 32px;
+  margin-bottom: 16px;
+  display: block;
+}
+
+.presetCard h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+}
+
+.presetCard p {
+  font-size: 14px;
+  color: #94a3b8;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.activeLabel {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-size: 11px;
+  background: #10b981;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* גריד ההגדרות */
+.settingsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}
+
+.sectionCard {
+  background: #1e293b;
+  border-radius: 20px;
+  padding: 24px;
+  border: 1px solid #334155;
+}
+
+.sectionCard h2 {
+  font-size: 18px;
+  margin: 0 0 20px 0;
+  color: #3b82f6;
+  border-bottom: 1px solid #334155;
+  padding-bottom: 12px;
+}
+
+.fieldsList {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.fieldRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+.fieldInfo {
+  flex: 1;
+}
+
+.fieldInfo label {
+  display: block;
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 4px;
+}
+
+.fieldDesc {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.input {
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  width: 100px;
+  text-align: center;
+  outline: none;
+}
+
+.input:focus {
+  border-color: #3b82f6;
+}
+
+/* כפתורים */
+.saveButton {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.resetButton {
+  background: transparent;
+  color: #94a3b8;
+  border: 1px solid #334155;
+  padding: 12px 24px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.resetButton:hover {
+  background: #334155;
+  color: white;
+}
+
+/* התראות */
+.errorBanner, .successBanner {
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  font-weight: 600;
+}
+
+.errorBanner { background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #fca5a5; }
+.successBanner { background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; color: #34d399; }
+
+.footerNote {
+  margin-top: 40px;
+  text-align: center;
+  color: #64748b;
+  font-style: italic;
+}
+
+.loadingState {
+  padding: 100px;
+  text-align: center;
+  color: #94a3b8;
+}
+
+@media (max-width: 1000px) {
+  .settingsGrid { grid-template-columns: 1fr; }
+  .presetGrid { grid-template-columns: 1fr; }
+}

@@ -3,6 +3,7 @@ import time
 from datetime import datetime
 
 import cv2
+import requests
 
 from facerecog.database.db_manager import DatabaseManager
 from facerecog.core.detector import Detector
@@ -151,6 +152,11 @@ def main():
 
     print("--- Face Recognition System Started ---")
 
+    try:
+        requests.post("http://127.0.0.1:8000/system/mark-ready")
+    except Exception:
+        pass
+    
     frame_index = 0
 
     while cap.isOpened():
