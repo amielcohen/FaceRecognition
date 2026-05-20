@@ -15,6 +15,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 import subprocess
 import sys
+import time
+from fastapi.responses import StreamingResponse
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -183,6 +185,9 @@ def get_attendance_logs(
 
 @app.get("/attendance-crop")
 def get_attendance_crop(path: str):
+    # Normalize backslashes to forward slashes
+    path = path.replace("\\", "/")
+    
     crop_path = Path(path)
 
     if not crop_path.is_absolute():
@@ -691,3 +696,41 @@ def apply_camera_preset(preset_name: str):
 @app.post("/camera-settings/reset")
 def reset_camera_settings():
     return apply_camera_preset("balanced")
+
+# =========================================================
+# Live Monitor Routes
+# =========================================================
+
+
+LATEST_FRAME_PATH = BASE_DIR / "data" / "latest_frame.jpg"
+
+
+def generate_frames():
+    """Read latest_frame.jpg from disk and stream it as MJPEG."""
+    while True:
+        if not LATEST_FRAME_PATH.exists():
+            time.sleep(0.1)
+            continue
+
+        try:
+            with open(LATEST_FRAME_PATH, "rb") as f:
+                frame_bytes = f.read()
+
+            yield (
+                b"--frame\r\n"
+                b"Content-Type: image/jpeg\r\n\r\n"
+                + frame_bytes
+                + b"\r\n"
+            )
+        except Exception:
+            pass
+
+        time.sleep(0.033)  # ~30fps read rate
+
+
+@app.get("/video-feed")
+def video_feed():
+    return StreamingResponse(
+        generate_frames(),
+        media_type="multipart/x-mixed-replace; boundary=frame"
+    )
