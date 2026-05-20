@@ -1,9 +1,12 @@
 services:
+
   backend:
     build: .
     container_name: face-backend
+    ports:
+      - "8000:8000"
     volumes:
-      - .:/app
+      - .:/app                                  # live reload during development
       - ./employees_data:/app/employees_data
       - ./storage:/app/storage
       - ./database:/app/database
@@ -12,6 +15,18 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - YOLO_CONFIG_DIR=/tmp/Ultralytics
-      - CAMERA_SOURCE=http://10.0.0.5:4747/videofeed
-    stdin_open: true
-    tty: true
+      - CAMERA_SOURCE=${CAMERA_SOURCE:-0}       # override in .env if needed
+    restart: unless-stopped
+
+  frontend:
+    image: node:20-alpine
+    container_name: face-frontend
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+    ports:
+      - "5173:5173"
+    command: sh -c "npm install && npm run dev -- --host"
+    depends_on:
+      - backend
+    restart: unless-stopped
