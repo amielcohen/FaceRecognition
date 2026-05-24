@@ -12,10 +12,12 @@ services:
       - ./database:/app/database
       - ./data:/app/data
       - ./models:/app/models
+      - /etc/localtime:/etc/localtime:ro
     environment:
       - PYTHONUNBUFFERED=1
       - YOLO_CONFIG_DIR=/tmp/Ultralytics
       - CAMERA_SOURCE=${CAMERA_SOURCE:-0}       # override in .env if needed
+      - TZ=Asia/Jerusalem
     restart: unless-stopped
 
   frontend:

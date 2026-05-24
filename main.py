@@ -13,10 +13,6 @@ from facerecog.core.face_recognizer import FaceRecognizer
 from facerecog.utils.face_quality import calculate_face_quality
 
 
-# =========================================================
-# Shared state between threads
-# =========================================================
-
 debug_stats = {
     "person_detected": 0,
     "no_face_in_person_crop": 0,
@@ -27,25 +23,19 @@ debug_stats = {
     "matched_below_threshold": 0,
     "matched_and_locked": 0,
     "unknown_after_match": 0,
+    "crop_saved_before_ai": 0,
 }
 
-# Latest raw frame from camera (written by camera thread, read by recognition thread)
 _latest_raw_frame = None
 _raw_frame_lock = threading.Lock()
 
-# Latest annotated frame for streaming (written by display thread, read by api.py)
 LATEST_FRAME_PATH = "data/latest_frame.jpg"
 
-# Active detections shared between recognition thread and display thread
-_active_detections = {}   # track_id -> {bbox, status, display_name, face_bbox}
+_active_detections = {}
 _detections_lock = threading.Lock()
 
 _stop_event = threading.Event()
 
-
-# =========================================================
-# Helpers
-# =========================================================
 
 def get_setting(settings, key, default, cast_type=float):
     try:
@@ -60,6 +50,7 @@ def get_setting(settings, key, default, cast_type=float):
 
 def save_face_crop(face_crop, matched_name, track_id, output_dir="data/crops"):
     if face_crop is None or face_crop.size == 0:
+        print(f"[Crop Save] No crop available for track {track_id}, name={matched_name}")
         return None
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
@@ -70,7 +61,13 @@ def save_face_crop(face_crop, matched_name, track_id, output_dir="data/crops"):
     safe_name = matched_name.replace(" ", "_")
     filename = f"{safe_name}_track{track_id}_{timestamp}.jpg"
     full_path = os.path.join(save_dir, filename)
-    cv2.imwrite(full_path, face_crop)
+
+    ok = cv2.imwrite(full_path, face_crop)
+    if not ok:
+        print(f"[Crop Save] Failed to write crop: {full_path}")
+        return None
+
+    print(f"[Crop Save] Saved crop: {full_path}")
     return full_path
 
 
@@ -99,7 +96,6 @@ def log_final_track_result(db, face_recognizer, track_id):
 
 
 def write_latest_frame(frame):
-    """Atomically write annotated frame to disk for the live stream endpoint."""
     try:
         os.makedirs("data", exist_ok=True)
         tmp_path = LATEST_FRAME_PATH.replace(".jpg", "_tmp.jpg")
@@ -108,11 +104,6 @@ def write_latest_frame(frame):
     except Exception as e:
         print(f"[Stream] Failed to write frame: {e}")
 
-
-# =========================================================
-# Thread 1: Camera Reader
-# Reads frames from camera as fast as possible
-# =========================================================
 
 def camera_reader_thread(cap):
     global _latest_raw_frame
@@ -132,21 +123,11 @@ def camera_reader_thread(cap):
     print("[CameraThread] Stopped")
 
 
-# =========================================================
-# Thread 2: Recognition Worker
-# Runs YOLO + DeepFace every frame_skip_interval frames
-# Updates _active_detections with latest results
-# =========================================================
-
 def recognition_thread(detector, face_detector, face_recognizer, db, settings):
     global _active_detections
 
     frame_skip_interval = get_setting(settings, "frame_skip_interval", 3, int)
     min_face_area = get_setting(settings, "min_face_area", 1000, int)
-    quality_submit_min = get_setting(settings, "quality_submit_min", 0.40, float)
-    quality_submit_hard = get_setting(settings, "quality_submit_hard", 0.82, float)
-    quality_gain_min = get_setting(settings, "quality_gain_min", 0.05, float)
-    quality_retry_interval = get_setting(settings, "quality_retry_interval", 5, int)
 
     frame_index = 0
 
@@ -163,21 +144,21 @@ def recognition_thread(detector, face_detector, face_recognizer, db, settings):
         frame = frame.copy()
         frame_index += 1
 
-        # Run YOLO every frame_skip_interval frames
         if frame_index % frame_skip_interval != 0:
             time.sleep(0.01)
             continue
 
         detections = detector.track(frame)
 
-        # Cleanup stale tracks every 30 processed frames
         if frame_index % (30 * frame_skip_interval) == 0:
             stale_ids = face_recognizer.cleanup_stale_tracks(
                 current_frame_index=frame_index,
                 max_missing_frames=90
             )
+
             for stale_track_id in stale_ids:
                 log_final_track_result(db, face_recognizer, stale_track_id)
+
             face_recognizer.purge_logged_stale_tracks(stale_ids)
 
         new_detections = {}
@@ -204,6 +185,11 @@ def recognition_thread(detector, face_detector, face_recognizer, db, settings):
             person_crop = frame[y1:y2, x1:x2]
             if person_crop.size == 0:
                 continue
+            
+            face_recognizer.save_last_person_crop(
+                                    track_id=track_id,
+                                    person_crop=person_crop,
+                                    frame_index=frame_index)
 
             local_face_bbox = None
 
@@ -211,13 +197,70 @@ def recognition_thread(detector, face_detector, face_recognizer, db, settings):
                 face_result = face_detector.detect_largest_face(person_crop)
 
                 if face_result is not None:
-                    face_recognizer.register_face_seen(track_id)
                     local_face_bbox = face_result["bbox"]
                     face_area = face_result["area"]
                     face_crop = face_result["crop"]
-                    quality = calculate_face_quality(face_crop, face_area)
 
-                    if face_area >= min_face_area:
+                    fx1, fy1, fx2, fy2 = map(int, local_face_bbox)
+                    person_h, person_w = person_crop.shape[:2]
+
+                    face_w = fx2 - fx1
+                    face_h = fy2 - fy1
+                    face_ratio = face_w / max(face_h, 1)
+
+                    face_touches_edge = (
+                        fx1 <= 5 or
+                        fy1 <= 5 or
+                        fx2 >= person_w - 5 or
+                        fy2 >= person_h - 5
+                    )
+
+                    crop_h, crop_w = face_crop.shape[:2]
+
+                    valid_face_for_ai = True
+
+                    if face_touches_edge:
+                        valid_face_for_ai = False
+                        print(
+                            f"[Bad Face] track={track_id}, "
+                            f"face touches edge, skipping AI. "
+                            f"bbox={local_face_bbox}, person_size={person_w}x{person_h}"
+                        )
+
+                    if face_ratio < 0.55 or face_ratio > 1.65:
+                        valid_face_for_ai = False
+                        print(
+                            f"[Bad Face] track={track_id}, "
+                            f"bad face ratio={face_ratio:.2f}, skipping AI"
+                        )
+
+                    if crop_w < 80 or crop_h < 80:
+                        valid_face_for_ai = False
+                        print(
+                            f"[Bad Face] track={track_id}, "
+                            f"crop too small={crop_w}x{crop_h}, skipping AI"
+                        )
+
+                    if face_area < min_face_area:
+                        valid_face_for_ai = False
+                        debug_stats["face_too_small"] += 1
+                        print(
+                            f"[Face Too Small] track={track_id}, "
+                            f"area={face_area}, min={min_face_area}, skipping AI"
+                        )
+
+                    if valid_face_for_ai:
+                        face_recognizer.register_face_seen(track_id)
+
+                        face_recognizer.save_last_crop(
+                            track_id=track_id,
+                            face_crop=face_crop,
+                            frame_index=frame_index
+                        )
+                        debug_stats["crop_saved_before_ai"] += 1
+
+                        quality = calculate_face_quality(face_crop, face_area)
+
                         if face_recognizer.should_process_face(
                             track_id=track_id,
                             face_area=face_area,
@@ -225,6 +268,7 @@ def recognition_thread(detector, face_detector, face_recognizer, db, settings):
                             current_frame=frame_index
                         ):
                             debug_stats["embedding_submitted"] += 1
+
                             face_recognizer.submit_face(
                                 track_id=track_id,
                                 face_crop=face_crop,
@@ -234,8 +278,7 @@ def recognition_thread(detector, face_detector, face_recognizer, db, settings):
                             )
                         else:
                             debug_stats["retry_blocked"] += 1
-                    else:
-                        debug_stats["face_too_small"] += 1
+
                 else:
                     debug_stats["no_face_in_person_crop"] += 1
 
@@ -258,15 +301,7 @@ def recognition_thread(detector, face_detector, face_recognizer, db, settings):
 
     print("[RecognitionThread] Stopped")
 
-
-# =========================================================
-# Thread 3: Display Writer
-# Reads latest raw frame, draws boxes, writes to disk at full speed
-# =========================================================
-
 def display_writer_thread(face_detector):
-    frame_count = 0
-
     print("[DisplayThread] Started")
 
     while not _stop_event.is_set():
@@ -296,6 +331,7 @@ def display_writer_thread(face_detector):
                 color = (255, 0, 0)
 
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+
             cv2.putText(
                 frame,
                 display_name,
@@ -315,16 +351,10 @@ def display_writer_thread(face_detector):
                 )
 
         write_latest_frame(frame)
-        frame_count += 1
-
-        time.sleep(0.033)  # target ~30fps display
+        time.sleep(0.033)
 
     print("[DisplayThread] Stopped")
 
-
-# =========================================================
-# Main
-# =========================================================
 
 def main():
     db = DatabaseManager("database/vision_db.sqlite")
@@ -388,17 +418,27 @@ def main():
     except Exception:
         pass
 
-    # Start all threads
     threads = [
-        threading.Thread(target=camera_reader_thread, args=(cap,), daemon=True),
-        threading.Thread(target=recognition_thread, args=(detector, face_detector, face_recognizer, db, settings), daemon=True),
-        threading.Thread(target=display_writer_thread, args=(face_detector,), daemon=True),
+        threading.Thread(
+            target=camera_reader_thread,
+            args=(cap,),
+            daemon=True
+        ),
+        threading.Thread(
+            target=recognition_thread,
+            args=(detector, face_detector, face_recognizer, db, settings),
+            daemon=True
+        ),
+        threading.Thread(
+            target=display_writer_thread,
+            args=(face_detector,),
+            daemon=True
+        ),
     ]
 
     for t in threads:
         t.start()
 
-    # Keep main thread alive until interrupted
     try:
         while True:
             time.sleep(1)
@@ -409,16 +449,17 @@ def main():
     for t in threads:
         t.join(timeout=5)
 
-    # Final cleanup
     stale_ids = face_recognizer.cleanup_stale_tracks(
         current_frame_index=999999,
         max_missing_frames=0
     )
+
     for stale_track_id in stale_ids:
         log_final_track_result(db, face_recognizer, stale_track_id)
 
     face_recognizer.purge_logged_stale_tracks(stale_ids)
     cap.release()
+
     print("[Main] Done.")
 
 
