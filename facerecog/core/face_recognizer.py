@@ -61,6 +61,7 @@ class FaceRecognizer:
             "last_submitted_quality": 0.0,
             "attempts": 0,
             "last_face_crop": None,
+            "last_person_crop": None,
             "last_seen_frame": 0,
             "logged": False,
             "ever_had_face": False,
@@ -98,6 +99,23 @@ class FaceRecognizer:
         state = self.track_states.setdefault(track_id, self._create_default_state())
         state["ever_had_face"] = True
 
+    def save_last_crop(self, track_id, face_crop, frame_index):
+        if face_crop is None or face_crop.size == 0:
+            return
+
+        state = self.track_states.setdefault(track_id, self._create_default_state())
+        state["last_face_crop"] = face_crop.copy()
+        state["last_seen_frame"] = frame_index
+        state["ever_had_face"] = True
+
+    def save_last_person_crop(self, track_id, person_crop, frame_index):
+        if person_crop is None or person_crop.size == 0:
+            return
+
+        state = self.track_states.setdefault(track_id, self._create_default_state())
+        state["last_person_crop"] = person_crop.copy()
+        state["last_seen_frame"] = frame_index
+
     def should_process_face(self, track_id, face_area, quality_score, current_frame):
         state = self.track_states.setdefault(track_id, self._create_default_state())
 
@@ -128,7 +146,10 @@ class FaceRecognizer:
         if face_crop is None or face_crop.size == 0:
             return False
 
+        print(f"[CROP] shape={face_crop.shape}, area={face_area}")
+
         state = self.track_states.setdefault(track_id, self._create_default_state())
+        state["last_face_crop"] = face_crop.copy()
 
         self.processing_ids.add(track_id)
         state["last_attempt_frame"] = current_frame
@@ -158,6 +179,21 @@ class FaceRecognizer:
 
         return best_match, min_dist
 
+    def _mark_unknown_if_needed(self, track_id):
+        state = self.track_states.setdefault(track_id, self._create_default_state())
+
+        if state["status"] in {"identified", "unknown"}:
+            return
+
+        if state["attempts"] >= self.max_unknown_attempts:
+            state["status"] = "unknown"
+            state["best_name"] = "Unknown"
+
+            print(
+                f"[UNKNOWN LOCK] Track {track_id} marked as Unknown "
+                f"after {state['attempts']} attempts"
+            )
+
     def _process_face_async(self, track_id, face_crop, face_area, quality):
         try:
             print(
@@ -183,22 +219,17 @@ class FaceRecognizer:
                 return
 
             new_embedding = results[0]["embedding"]
+
+            print(f"[EMBEDDING NORM] {sum(x * x for x in new_embedding) ** 0.5:.4f}")
+
             name, dist = self.match_face(new_embedding)
-
-            if "amit" in self.employee_db:
-                for i, db_embedding in enumerate(self.employee_db["amit"]):
-                    d = distance.cosine(new_embedding, db_embedding)
-                    print(f"[COMPARE] amit[{i}] = {d:.4f}")
-
-            if "dotan" in self.employee_db:
-                for i, db_embedding in enumerate(self.employee_db["dotan"]):
-                    d = distance.cosine(new_embedding, db_embedding)
-                    print(f"[COMPARE] dotan[{i}] = {d:.4f}")
-
             decision = "accepted" if dist < self.match_threshold else "rejected"
+
             print(
-                f"[Match] Track {track_id} | candidate={name} | "
-                f"distance={dist:.4f} | decision={decision}"
+                f"[Match] Track {track_id} | "
+                f"candidate={name} | "
+                f"distance={dist:.4f} | "
+                f"decision={decision}"
             )
 
             state = self.track_states.setdefault(track_id, self._create_default_state())
@@ -233,7 +264,10 @@ class FaceRecognizer:
                     self.debug_stats["matched_below_threshold"] += 1
 
             else:
-                if state["best_dist"] is not None and state["best_dist"] < self.match_threshold:
+                if (
+                    state["best_dist"] is not None
+                    and state["best_dist"] < self.match_threshold
+                ):
                     print(
                         f"[Ignore Fail] Track {track_id} already has valid match "
                         f"({state['best_dist']:.4f})"
@@ -242,10 +276,9 @@ class FaceRecognizer:
 
                 state["attempts"] += 1
 
-                print(
-                    f"[Attempt] {state['attempts']}/{self.max_unknown_attempts} "
-                    f"(not marking Unknown while track is still visible)"
-                )
+                print(f"[Attempt] {state['attempts']}/{self.max_unknown_attempts}")
+
+                self._mark_unknown_if_needed(track_id)
 
                 if self.debug_stats is not None:
                     self.debug_stats["unknown_after_match"] += 1
@@ -264,16 +297,20 @@ class FaceRecognizer:
     def _register_failed_attempt(self, track_id):
         state = self.track_states.setdefault(track_id, self._create_default_state())
 
-        if state["best_dist"] is not None and state["best_dist"] < self.match_threshold:
+        if (
+            state["best_dist"] is not None
+            and state["best_dist"] < self.match_threshold
+        ):
             return
 
         state["attempts"] += 1
 
         print(
             f"[Failed Attempt] Track {track_id} | "
-            f"{state['attempts']}/{self.max_unknown_attempts} "
-            f"(not marking Unknown while track is still visible)"
+            f"{state['attempts']}/{self.max_unknown_attempts}"
         )
+
+        self._mark_unknown_if_needed(track_id)
 
     def should_log_identity(self, track_id):
         state = self.track_states.get(track_id)
@@ -296,15 +333,26 @@ class FaceRecognizer:
         decision_type = "unknown"
 
         if state["status"] == "identified":
-            if state["best_dist"] is not None and state["best_dist"] < self.lock_threshold:
+            if (
+                state["best_dist"] is not None
+                and state["best_dist"] < self.lock_threshold
+            ):
                 decision_type = "locked"
             else:
                 decision_type = "soft_match"
 
+        final_name = state["best_name"] if state["status"] == "identified" else "Unknown"
+        final_distance = state["best_dist"] if state["status"] == "identified" else None
+
+        crop = state["last_face_crop"]
+
+        if crop is None:
+            crop = state.get("last_person_crop")
+
         return {
-            "name": state["best_name"] if state["status"] == "identified" else "Unknown",
-            "distance": state["best_dist"],
-            "crop": state["last_face_crop"],
+            "name": final_name,
+            "distance": final_distance,
+            "crop": crop,
             "quality": state.get("best_quality", 0.0),
             "attempts": state.get("attempts", 0),
             "decision_type": decision_type,
@@ -315,12 +363,23 @@ class FaceRecognizer:
 
         for track_id, state in self.track_states.items():
             if current_frame_index - state["last_seen_frame"] > max_missing_frames:
+
                 if state["status"] == "scanning":
-                    if state["best_dist"] is not None and state["best_dist"] < self.match_threshold:
+
+                    if (
+                        state["best_dist"] is not None
+                        and state["best_dist"] < self.match_threshold
+                    ):
                         state["status"] = "identified"
+
                     else:
                         state["status"] = "unknown"
                         state["best_name"] = "Unknown"
+
+                        print(
+                            f"[STALE UNKNOWN] Track {track_id} "
+                            f"marked Unknown during cleanup"
+                        )
 
                 stale_ids.append(track_id)
 
@@ -328,6 +387,9 @@ class FaceRecognizer:
 
     def purge_logged_stale_tracks(self, stale_ids):
         for track_id in stale_ids:
-            if track_id in self.track_states and self.track_states[track_id]["logged"]:
+            if (
+                track_id in self.track_states
+                and self.track_states[track_id]["logged"]
+            ):
                 self.track_states.pop(track_id, None)
                 self.processing_ids.discard(track_id)
