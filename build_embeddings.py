@@ -23,10 +23,9 @@ def get_embedding(face_crop, model_name="Facenet"):
         results = DeepFace.represent(
             img_path=face_crop,
             model_name=model_name,
-            enforce_detection=True,
-            detector_backend="retinaface",
-            align=True,
-
+            enforce_detection=False,
+            detector_backend="skip",
+            align=False,
         )
         return results[0]["embedding"]
     except Exception as e:

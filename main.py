@@ -5,7 +5,7 @@ from datetime import datetime
 
 import cv2
 import requests
-
+from dotenv import load_dotenv
 from facerecog.database.db_manager import DatabaseManager
 from facerecog.core.detector import Detector
 from facerecog.core.face_detector import FaceDetector
@@ -355,7 +355,7 @@ def display_writer_thread(face_detector):
 
     print("[DisplayThread] Stopped")
 
-
+load_dotenv()
 def main():
     db = DatabaseManager("database/vision_db.sqlite")
 
