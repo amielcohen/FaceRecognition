@@ -5,6 +5,7 @@ from pathlib import Path
 
 from deepface import DeepFace
 from scipy.spatial import distance
+import cv2
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -154,6 +155,13 @@ class FaceRecognizer:
         self.processing_ids.add(track_id)
         state["last_attempt_frame"] = current_frame
         state["last_submitted_quality"] = quality.get("score", 0.0)
+        print(
+            f"[SUBMIT] track={track_id} "
+            f"frame={current_frame} "
+            f"area={face_area} "
+            f"quality={quality.get('score', 0):.3f} "
+            f"best_quality={state['best_quality']:.3f} "
+            f"best_dist={state['best_dist']}")
 
         self.executor.submit(
             self._process_face_async,
@@ -188,6 +196,13 @@ class FaceRecognizer:
         if state["attempts"] >= self.max_unknown_attempts:
             state["status"] = "unknown"
             state["best_name"] = "Unknown"
+
+            if state["last_face_crop"] is not None:
+
+                cv2.imwrite(
+                    f"debug_unknown_track_{track_id}.jpg",
+                    state["last_face_crop"]
+                )
 
             print(
                 f"[UNKNOWN LOCK] Track {track_id} marked as Unknown "
